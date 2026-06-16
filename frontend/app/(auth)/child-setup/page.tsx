@@ -6,6 +6,15 @@ import PersonaForm from '@/components/persona/PersonaForm';
 import { createChild } from '@/lib/api';
 import { Persona } from '@/types';
 
+
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 export default function ChildSetupPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -15,14 +24,20 @@ export default function ChildSetupPage() {
   async function handleCreatePersona(persona: Persona) {
     setLoading(true);
     try {
-      await createChild({
-        parent_id: 'temp-parent-id', // ⭐ لاحقاً نربطه بـ Auth
+      const result = await createChild({
+        parent_id: generateUUID(),
         display_name: childInfo.displayName,
         age: parseInt(childInfo.age),
         persona,
       });
+      
+  
+      localStorage.setItem('childId', result.child.id);
+      localStorage.setItem('childName', result.child.display_name);
+      
       router.push('/child');
     } catch (err) {
+      console.error(err);
       alert('حدث خطأ، حاول مرة أخرى');
     } finally {
       setLoading(false);
