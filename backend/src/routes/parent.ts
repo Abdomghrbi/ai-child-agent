@@ -4,14 +4,80 @@ import { randomUUID } from 'crypto';
 
 const router = Router();
 
-// إنشاء حساب طفل + Persona
+router.post('/register', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const id = randomUUID();
+
+    const { data, error } = await supabase
+      .from('parents')
+      .insert({ id, email: email || `parent_${Date.now()}@temp.com` })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Supabase error:', error);
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({ parent: data });
+
+  } catch (err) {
+    console.error('Server error:', err);
+    res.status(500).json({ error: 'Failed to create parent' });
+  }
+});
+
 router.post('/children', async (req, res) => {
   try {
     const { parent_id, display_name, age, persona } = req.body;
+
+    let validParentId = parent_id;
     
-    const validParentId = parent_id && parent_id !== 'temp-parent-id' 
-      ? parent_id 
-      : randomUUID();
+    if (!parent_id || parent_id === 'temp-parent-id') {
+    
+      const { data: newParent, error: parentError } = await supabase
+        .from('parents')
+        .insert({ 
+          id: randomUUID(),
+          email: `parent_${Date.now()}@temp.com` 
+        })
+        .select()
+        .single();
+      
+      if (parentError) {
+        console.error('Parent creation error:', parentError);
+        return res.status(400).json({ error: 'Failed to create parent: ' + parentError.message });
+      }
+      
+      validParentId = newParent.id;
+    } else {
+      
+      const { data: existingParent } = await supabase
+        .from('parents')
+        .select('id')
+        .eq('id', parent_id)
+        .single();
+      
+      if (!existingParent) {
+        
+        const { data: newParent, error: parentError } = await supabase
+          .from('parents')
+          .insert({ 
+            id: parent_id,
+            email: `parent_${Date.now()}@temp.com` 
+          })
+          .select()
+          .single();
+        
+        if (parentError) {
+          console.error('Parent creation error:', parentError);
+          return res.status(400).json({ error: 'Failed to create parent: ' + parentError.message });
+        }
+        
+        validParentId = newParent.id;
+      }
+    }
 
     const { data, error } = await supabase
       .from('children')
@@ -35,7 +101,7 @@ router.post('/children', async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
-    res.json({ child: data });
+    res.json({ child: data, parent_id: validParentId });
 
   } catch (err) {
     console.error('Server error:', err);
