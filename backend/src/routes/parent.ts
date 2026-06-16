@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabase';
+import { randomUUID } from 'crypto';
 
 const router = Router();
 
@@ -7,11 +8,15 @@ const router = Router();
 router.post('/children', async (req, res) => {
   try {
     const { parent_id, display_name, age, persona } = req.body;
+    
+    const validParentId = parent_id && parent_id !== 'temp-parent-id' 
+      ? parent_id 
+      : randomUUID();
 
     const { data, error } = await supabase
       .from('children')
       .insert({
-        parent_id,
+        parent_id: validParentId,
         display_name,
         age,
         persona_name: persona.name,
@@ -25,17 +30,19 @@ router.post('/children', async (req, res) => {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase error:', error);
+      return res.status(400).json({ error: error.message });
+    }
 
     res.json({ child: data });
 
   } catch (err) {
-    console.error(err);
+    console.error('Server error:', err);
     res.status(500).json({ error: 'Failed to create child' });
   }
 });
 
-// جلب أطفال الأب
 router.get('/children/:parent_id', async (req, res) => {
   try {
     const { parent_id } = req.params;
@@ -55,7 +62,6 @@ router.get('/children/:parent_id', async (req, res) => {
   }
 });
 
-// سجل محادثات الطفل
 router.get('/conversations/:child_id', async (req, res) => {
   try {
     const { child_id } = req.params;
